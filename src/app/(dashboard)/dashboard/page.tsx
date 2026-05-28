@@ -33,12 +33,13 @@ import { useAuth } from "@/contexts/auth-context"
 import { useClinic } from "@/contexts/clinic-context"
 import {
   APPOINTMENTS,
-  MONTHLY_STATS,
-  DIAGNOSIS_STATS,
-  VISIT_TREND,
+  CLINIC_MONTHLY_STATS,
+  CLINIC_DIAGNOSIS_STATS,
+  CLINIC_VISIT_TREND,
   TRANSACTIONS,
   QUEUE_ITEMS,
   PATIENTS,
+  DOCTORS,
 } from "@/lib/data"
 import {
   UsersIcon,
@@ -170,8 +171,8 @@ function DoctorDashboard() {
             <CardDescription>Kunjungan per hari</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={{ kunjungan: { label: "Kunjungan", color: "#3b82f6" } }} className="h-56">
-              <BarChart data={VISIT_TREND}>
+            <ChartContainer config={{ kunjungan: { label: "Kunjungan", color: "#3b82f6" } }} className="h-56 w-full">
+              <BarChart data={CLINIC_VISIT_TREND["c1"]}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="day" className="text-xs" />
                 <YAxis className="text-xs" />
@@ -266,37 +267,54 @@ function KasirDashboard() {
   )
 }
 
-function PimpinanDashboard() {
+function PimpinanDashboard({ clinicId }: { clinicId: string }) {
+  const monthlyStats = CLINIC_MONTHLY_STATS[clinicId] ?? CLINIC_MONTHLY_STATS["c1"]
+  const diagnosisStats = CLINIC_DIAGNOSIS_STATS[clinicId] ?? CLINIC_DIAGNOSIS_STATS["c1"]
+  const visitTrend = CLINIC_VISIT_TREND[clinicId] ?? CLINIC_VISIT_TREND["c1"]
+
+  const lastMonth = monthlyStats[monthlyStats.length - 1]
+  const prevMonth = monthlyStats[monthlyStats.length - 2]
+  const revenueGrowth = prevMonth
+    ? Math.round(((lastMonth.pendapatan - prevMonth.pendapatan) / prevMonth.pendapatan) * 100)
+    : 0
+  const pasienGrowth = prevMonth
+    ? Math.round(((lastMonth.pasien - prevMonth.pasien) / prevMonth.pasien) * 100)
+    : 0
+
+  const activeQueue = QUEUE_ITEMS.filter((q) => q.clinicId === clinicId && q.status !== "selesai")
+  const clinicDoctors = DOCTORS.filter((d) => d.clinicId === clinicId)
+  const clinicPatients = PATIENTS.filter((p) => p.clinicId === clinicId)
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Pasien Bulan Ini"
-          value="620"
-          desc="+8% dari bulan lalu"
+          value={String(lastMonth.pasien)}
+          desc={`${pasienGrowth >= 0 ? "+" : ""}${pasienGrowth}% dari bulan lalu`}
           icon={UsersIcon}
           color="bg-blue-100 text-blue-600"
-          trend={{ value: 8, label: "vs bulan lalu" }}
+          trend={{ value: pasienGrowth, label: "vs bulan lalu" }}
         />
         <StatCard
           title="Pendapatan Bulan Ini"
-          value="Rp 89.4jt"
+          value={`Rp ${(lastMonth.pendapatan / 1000000).toFixed(1)}jt`}
           desc="Total pendapatan bersih"
           icon={TrendingUpIcon}
           color="bg-green-100 text-green-600"
-          trend={{ value: 14, label: "vs bulan lalu" }}
+          trend={{ value: revenueGrowth, label: "vs bulan lalu" }}
         />
         <StatCard
           title="Antrian Aktif"
-          value="7"
+          value={String(activeQueue.length)}
           desc="Pasien dalam antrian"
           icon={ListOrderedIcon}
           color="bg-orange-100 text-orange-600"
         />
         <StatCard
           title="Dokter Aktif"
-          value="3"
-          desc="Praktek hari ini"
+          value={String(clinicDoctors.length)}
+          desc="Terdaftar di klinik ini"
           icon={StethoscopeIcon}
           color="bg-purple-100 text-purple-600"
         />
@@ -317,9 +335,9 @@ function PimpinanDashboard() {
             <CardContent>
               <ChartContainer
                 config={{ pendapatan: { label: "Pendapatan (jt)", color: "#3b82f6" } }}
-                className="h-64"
+                className="h-72 w-full"
               >
-                <AreaChart data={MONTHLY_STATS}>
+                <AreaChart data={monthlyStats}>
                   <defs>
                     <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -347,9 +365,9 @@ function PimpinanDashboard() {
             <CardContent>
               <ChartContainer
                 config={{ pasien: { label: "Pasien", color: "#10b981" } }}
-                className="h-64"
+                className="h-72 w-full"
               >
-                <BarChart data={MONTHLY_STATS}>
+                <BarChart data={monthlyStats}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="month" className="text-xs" />
                   <YAxis className="text-xs" />
@@ -367,11 +385,11 @@ function PimpinanDashboard() {
               <CardDescription>Distribusi penyakit bulan ini</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col sm:flex-row items-center gap-6">
-                <ChartContainer config={{}} className="h-48 w-48 shrink-0">
+              <div className="flex flex-col lg:flex-row items-center gap-6">
+                <ChartContainer config={{}} className="h-56 w-full lg:w-56 shrink-0">
                   <PieChart>
-                    <Pie data={DIAGNOSIS_STATS} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} paddingAngle={3}>
-                      {DIAGNOSIS_STATS.map((_, i) => (
+                    <Pie data={diagnosisStats} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} paddingAngle={3}>
+                      {diagnosisStats.map((_, i) => (
                         <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                       ))}
                     </Pie>
@@ -379,7 +397,7 @@ function PimpinanDashboard() {
                   </PieChart>
                 </ChartContainer>
                 <div className="space-y-3 flex-1 w-full">
-                  {DIAGNOSIS_STATS.map((d, i) => (
+                  {diagnosisStats.map((d, i) => (
                     <div key={d.name} className="space-y-1">
                       <div className="flex justify-between text-sm">
                         <div className="flex items-center gap-2">
@@ -407,22 +425,26 @@ function PimpinanDashboard() {
           <CardContent>
             <ScrollArea className="h-56">
               <div className="space-y-2">
-                {QUEUE_ITEMS.filter((q) => q.status !== "selesai").map((q) => (
-                  <div key={q.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-                    <div className={`size-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                      q.type === "darurat" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
-                    }`}>
-                      {q.queueNumber}
+                {activeQueue.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">Tidak ada antrian aktif</p>
+                ) : (
+                  activeQueue.map((q) => (
+                    <div key={q.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                      <div className={`size-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                        q.type === "darurat" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {q.queueNumber}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{q.patientName}</p>
+                        <p className="text-xs text-muted-foreground">{q.doctorName}</p>
+                      </div>
+                      <Badge variant={q.status === "berlangsung" ? "default" : "secondary"} className="text-xs">
+                        {q.status === "berlangsung" ? "Berlangsung" : "Menunggu"}
+                      </Badge>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{q.patientName}</p>
-                      <p className="text-xs text-muted-foreground">{q.doctorName}</p>
-                    </div>
-                    <Badge variant={q.status === "berlangsung" ? "default" : "secondary"} className="text-xs">
-                      {q.status === "berlangsung" ? "Berlangsung" : "Menunggu"}
-                    </Badge>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </ScrollArea>
           </CardContent>
@@ -431,12 +453,12 @@ function PimpinanDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Pasien Terbaru</CardTitle>
-            <CardDescription>Pendaftaran pasien baru</CardDescription>
+            <CardDescription>Terdaftar di klinik ini</CardDescription>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-56">
               <div className="space-y-2">
-                {PATIENTS.slice(0, 6).map((p) => (
+                {clinicPatients.slice(0, 6).map((p) => (
                   <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
                     <Avatar className="size-8">
                       <AvatarFallback className="text-xs">{p.name[0]}</AvatarFallback>
@@ -453,6 +475,24 @@ function PimpinanDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Kunjungan Minggu Ini</CardTitle>
+          <CardDescription>Tren kunjungan harian per dokter</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={{ kunjungan: { label: "Kunjungan", color: "#8b5cf6" } }} className="h-56 w-full">
+            <BarChart data={visitTrend}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis dataKey="day" className="text-xs" />
+              <YAxis className="text-xs" />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="kunjungan" fill="#8b5cf6" radius={4} />
+            </BarChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -557,7 +597,7 @@ export default function DashboardPage() {
 
       {user.role === "dokter" && <DoctorDashboard />}
       {user.role === "kasir" && <KasirDashboard />}
-      {user.role === "pimpinan" && <PimpinanDashboard />}
+      {user.role === "pimpinan" && activeClinic && <PimpinanDashboard clinicId={activeClinic.id} />}
       {user.role === "pasien" && <PasienDashboard />}
       {(user.role === "resepsionis" || user.role === "apoteker") && <GenericDashboard />}
     </div>
