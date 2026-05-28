@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "shadcn-ui": {
+      "source": "existential-birds/beagle",
+      "sourceType": "github",
+      "skillPath": "plugins/beagle-react/skills/shadcn-ui/SKILL.md",
+      "computedHash": "2195563ea2968fd307797bb52fd19dadd4cbf6cb7e1f1a7b93a2d43ceefbe5d0"
+    }
+  }
+}
